@@ -5,7 +5,7 @@
 ##        Install Azure Az powershell module - Follow installation instructions on https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-5.6.0
 ##
 ##        Linux users:
-##        Install Powershell for Linux (PSCore) - Follow instrcutions on https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux?view=powershell-7.1
+##        Install Powershell for Linux (PSCore) - Follow instructions on https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux?view=powershell-7.1
 ##        Install Azure Az powershell module - Follow installation instructions on https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-5.6.0
 ##
 ## Usage: Use Connect-AzConnect to your respective tenant/cloud first (https://docs.microsoft.com/en-us/azure/azure-government/documentation-government-get-started-connect-with-ps).
