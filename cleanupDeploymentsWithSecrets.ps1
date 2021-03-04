@@ -1,85 +1,100 @@
-## This script cleans up the deployments at management group level, subscription level, and resource group level that can potentially lead to secrets exposure.
-## usage: az login to your respective tenant/cloud first. Then run this script via powershell.
-##        Windows machine: 
+## This script cleans up the deployments at management group level, subscription level, and resource group level with debugSettings set to 'RequestContent, ResponseContent'.
+##
+## Pre-requisites:
+##        Windows users:
+##        Install Azure Az powershell module - Follow installation instructions on https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-5.6.0
+##
+##        Linux users:
+##        Install Powershell for Linux (PSCore) - Follow instrcutions on https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux?view=powershell-7.1
+##        Install Azure Az powershell module - Follow installation instructions on https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-5.6.0
+##
+## Usage: Use Connect-AzConnect to your respective tenant/cloud first (https://docs.microsoft.com/en-us/azure/azure-government/documentation-government-get-started-connect-with-ps).
+##        Then run this script via powershell.
+##
+##        Windows users: 
 ##        Open powershell and execute this script
-##        PS C:\> ./cleanupDeploymentsWithSecrets.ps1
+##        PS C:\> ./Remove-DebugDeployments.ps1
 ##        
-##        Linux machine:
-##        Install powershell for Linux (PSCore) - https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux?view=powershell-7.1
-##        Navigate to the directory containing this script via terminal, open powershell with pwsh command and execute the script
-##        PS ./cleanupDeploymentsWithSecrets.ps1
+##        Linux users:
+##        Open powershell with pwsh command on Terminal and execute the script
+##        PS ./Remove-DebugDeployments.ps1
 ## WARNING: As this script goes through all management groups, subscriptions and resource groups level deployments, the output can potentially be huge, thus we strongly recommend to redirect the output to a file
 
 $ErrorActionPreference='Continue' # To make sure the script continues to run after failure
 
 ## Assuming that user has already logged into the respective cloud/tenant.
-$managementGroups = az account management-group list | ConvertFrom-Json
+$managementGroups = Get-AzManagementGroup
 
-echo 'Iterating through the management groups...'
+Write-Host "Iterating through the management groups..."
 
-## Go through all the management groups. Look for deployments with potentially exposing secrets, and delete such deployments
-foreach($managementGroup in $managementGroups) {
-    Write-Host "Fetching deployments for management group - $($managementGroup.name)"
+## Go through all the management groups. Look for deployments with debugSettings, and delete such deployments
+foreach ($managementGroup in $managementGroups) {
+    Write-Host "Fetching deployments for management group - $($managementGroup.Name)"
+    
+    $MGDeployments = Get-AzManagementGroupDeployment -ManagementGroupId $managementGroup.Name
 
-    $MGDeployments = az deployment mg list -m $managementGroup.name --query "[?properties.debugSetting.detailLevel == 'RequestContent, ResponseContent']" | ConvertFrom-Json
+    foreach ($MGDeployment in $MGDeployments) {
+        if ($MGDeployment.DeploymentDebugLogLevel -eq "RequestContent, ResponseContent") {
+            Write-Host "The Deployment - $($MGDeployment.DeploymentName) for the management group $($managementGroup.Name) has debugSettings enabled. Proceeding to delete this deployment..."
 
-    foreach($MGDeployment in $MGDeployments) {
-        Write-Host "The Deployment - $($MGDeployment.name) for the management group $($managementGroup.name) has debugSettings enabled and that can potentially lead to secrets exposure. Proceeding to delete this deployment..."
+            Remove-AzManagementGroupDeployment -ManagementGroupId $managementGroup.Name -Name $MGDeployment.DeploymentName
 
-        az deployment mg delete -m $managementGroup.name -n $MGDeployment.name
-        if (-not $?) {
-            Write-Host "Failed to delete $($MGDeployment.name). $($Error[0].Exception.Message)" -fore Red
-        }
-        else {
-            Write-Host "Deleted - $($MGDeployment.name)" -fore Green
+            if (-not $?) {
+                Write-Host "Failed to delete $($MGDeployment.DeploymentName)" -fore Red
+            }
+            else {
+                Write-Host "Successfully deleted $($MGDeployment.DeploymentName)" -fore Green
+            }
         }
     }
 }
 
-$subscriptions = az account list | ConvertFrom-Json
+$subscriptions = Get-AzSubscription
 
 Write-Host 'Iterating through the subscriptions...'
 
-## Go through all the subscriptions. Look for deployments with potentially exposing secrets, and delete such deployments.
-## Go through all resource groups under the subscription. Look for deployments with potentially exposing secrets, and delete such deployments.
-foreach($subscription in $subscriptions) {
-    Write-Host "Fetching deployments for subscription - $($subscription.name)"
-    
-    az account set --subscription $subscription.name
+## Go through all the subscriptions. Look for deployments with debugSettings, and delete such deployments.
+## Go through all resource groups under the subscription. Look for deployments with debugSettings, and delete such deployments.
+foreach ($subscription in $subscriptions) {
+    Set-AzContext -Subscription $subscription.Id
+    $SubDeployments = Get-AzDeployment
 
-    $SubDeployments = az deployment sub list --query "[?properties.debugSetting.detailLevel == 'RequestContent, ResponseContent']" | ConvertFrom-Json
+    foreach ($SubDeployment in $SubDeployments) {
+        if ($SubDeployment.DeploymentDebugLogLevel -eq "RequestContent, ResponseContent") {
+            Write-Host "The Deployment - $($SubDeployment.DeploymentName) for the subscription $($subscription.Name) has debugSettings enabled. Proceeding to delete this deployment..."
 
-    foreach($SubDeployment in $SubDeployments) {
-       Write-Host "The Deployment - $($SubDeployment.name) for the subscription $($subscription.name) has debugSettings enabled and that can potentially lead to secrets exposure. Proceeding to delete this deployment..."
-
-       az deployment sub delete -n $SubDeployment.name
-       if (-not $?) {
-           Write-Host "Failed to delete $($SubDeployment.name). $($Error[0].Exception.Message)" -fore Red
-       }
-       else {
-           Write-Host "Deleted - $($SubDeployment.name)" -fore Green
-       }
+            Remove-AzDeployment -Name $SubDeployment.DeploymentName
+            
+            if (-not $?) {
+                Write-Host "Failed to delete $($SubDeployment.DeploymentName)" -fore Red
+            }
+            else {
+                Write-Host "Successfully deleted $($SubDeployment.DeploymentName)" -fore Green
+            }
+        }
     }
 
-    Write-Host "Iterating through the resource groups under $($subscription.name)..."
+    Write-Host "Iterating through the resource groups under $($subscription.Name)..."
 
-    $resourceGroups = az group list | ConvertFrom-Json
+    $resourceGroups = Get-AzResourceGroup
 
-    foreach($resourceGroup in $resourceGroups) {
-       Write-Host "Fetching deployments for resource group - $($resourceGroup.name)"
+    foreach ($resourceGroup in $resourceGroups) {
+        Write-Host "Fetching deployments for resource group - $($resourceGroup.ResourceGroupName)"
 
-       $RGDeployments = az deployment group list -g $resourceGroup.name --query "[?properties.debugSetting.detailLevel == 'RequestContent, ResponseContent']" | ConvertFrom-Json
+        $RGDeployments = Get-AzResourceGroupDeployment -ResourceGroupName $resourceGroup.ResourceGroupName
 
-       foreach($RGDeployment in $RGDeployments) {
-          Write-Host "The Deployment - $($RGDeployment.name) for the resource group $($resourceGroup.name) has debugSettings enabled and that can potentially lead to secrets exposure. Proceeding to delete this deployment..."
-
-          az deployment group delete -g $resourceGroup.name -n $RGDeployment.name
-          if (-not $?) {
-              Write-Host "Failed to delete $($RGDeployment.name). $($Error[0].Exception.Message)" -fore Red
-          }
-          else {
-              Write-Host "Deleted - $($RGDeployment.name)" -fore Green
-          }
-       }
+        foreach ($RGDeployment in $RGDeployments) {
+            if ($RGDeployment.DeploymentDebugLogLevel -eq "RequestContent, ResponseContent") {
+                Write-Host "The Deployment - $($RGDeployment.DeploymentName) for the resource group $($resourceGroup.ResourceGroupName) has debugSettings enabled. Proceeding to delete this deployment..."
+    
+                Remove-AzResourceGroupDeployment -ResourceGroupName $resourceGroup.ResourceGroupName -Name $RGDeployment.DeploymentName
+                if (-not $?) {
+                    Write-Host "Failed to delete $($RGDeployment.DeploymentName)" -fore Red
+                }
+                else {
+                    Write-Host "Successfully deleted $($RGDeployment.DeploymentName)" -fore Green
+                }
+            }
+        }
     }
 }
