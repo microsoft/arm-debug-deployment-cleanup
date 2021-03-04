@@ -1,4 +1,4 @@
-## This script removes deployments at management group level, subscription level, and resource group level with debugSettings that contain 'RequestContent'.  Removing a deployment does NOT affect or remove any resources that were deployed during that deployment.
+## This script removes deployments at the management group, subscription and resource group scope that were created with debugSettings that contain the 'RequestContent'. Removing a deployment does NOT affect or remove any resources that were deployed during that deployment.
 ##
 ## Pre-requisites:
 ##        Windows users:
@@ -21,7 +21,17 @@
 ##        PS ./Remove-DebugDeployments.ps1
 ##
 
+param(
+    [switch]$whatIf
+)
+
 $ErrorActionPreference='Continue' # To make sure the script continues to run after an individual failure
+
+if($whatIf){
+    $prefix = "What if:"
+} else {
+    $prefix = ""
+}
 
 $managementGroups = Get-AzManagementGroup
 
@@ -37,13 +47,13 @@ foreach ($managementGroup in $managementGroups) {
         if ($MGDeployment.DeploymentDebugLogLevel -like "*RequestContent*") {
             Write-Host "The Deployment - $($MGDeployment.DeploymentName) for the management group $($managementGroup.Name) contains RequestContent. Proceeding to delete this deployment..."
 
-            Remove-AzManagementGroupDeployment -ManagementGroupId $managementGroup.Name -Name $MGDeployment.DeploymentName
+            Remove-AzManagementGroupDeployment -ManagementGroupId $managementGroup.Name -Name $MGDeployment.DeploymentName -whatIf:$whatIf
 
             if (-not $?) {
-                Write-Host "Failed to delete $($MGDeployment.DeploymentName)" -fore Red
+                Write-Host "$prefix Failed to delete $($MGDeployment.DeploymentName)" -fore Red
             }
             else {
-                Write-Host "Successfully deleted $($MGDeployment.DeploymentName)" -fore Green
+                Write-Host "$prefix Successfully deleted $($MGDeployment.DeploymentName)" -fore Green
             }
         }
     }
@@ -63,13 +73,13 @@ foreach ($subscription in $subscriptions) {
         if ($SubDeployment.DeploymentDebugLogLevel -like "*RequestContent*") {
             Write-Host "The Deployment - $($SubDeployment.DeploymentName) for the subscription $($subscription.Name) contains RequestContent. Proceeding to delete this deployment..."
 
-            Remove-AzSubscriptionDeployment -Name $SubDeployment.DeploymentName
+            Remove-AzSubscriptionDeployment -Name $SubDeployment.DeploymentName -whatIf:$whatIf
             
             if (-not $?) {
-                Write-Host "Failed to delete $($SubDeployment.DeploymentName)" -fore Red
+                Write-Host "$prefix Failed to delete $($SubDeployment.DeploymentName)" -fore Red
             }
             else {
-                Write-Host "Successfully deleted $($SubDeployment.DeploymentName)" -fore Green
+                Write-Host "$prefix Successfully deleted $($SubDeployment.DeploymentName)" -fore Green
             }
         }
     }
@@ -87,12 +97,13 @@ foreach ($subscription in $subscriptions) {
             if ($RGDeployment.DeploymentDebugLogLevel -like "*RequestContent*") {
                 Write-Host "The Deployment - $($RGDeployment.DeploymentName) for the resource group $($resourceGroup.ResourceGroupName) contains RequestContent. Proceeding to delete this deployment..."
     
-                Remove-AzResourceGroupDeployment -ResourceGroupName $resourceGroup.ResourceGroupName -Name $RGDeployment.DeploymentName
+                Remove-AzResourceGroupDeployment -ResourceGroupName $resourceGroup.ResourceGroupName -Name $RGDeployment.DeploymentName -whatIf:$whatIf
+                
                 if (-not $?) {
-                    Write-Host "Failed to delete $($RGDeployment.DeploymentName)" -fore Red
+                    Write-Host "$prefix Failed to delete $($RGDeployment.DeploymentName)" -fore Red
                 }
                 else {
-                    Write-Host "Successfully deleted $($RGDeployment.DeploymentName)" -fore Green
+                    Write-Host "$prefix Successfully deleted $($RGDeployment.DeploymentName)" -fore Green
                 }
             }
         }
