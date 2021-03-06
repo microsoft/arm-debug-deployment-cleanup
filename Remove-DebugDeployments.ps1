@@ -11,26 +11,30 @@
 ## Usage: Use Connect-AzConnect to your respective tenant/cloud first (https://docs.microsoft.com/en-us/azure/azure-government/documentation-government-get-started-connect-with-ps).  You must connect with an account that has permissions to delete the deployments you wish to remove.
 ##
 ##        Then run this script via powershell.
+##        Note: The script won't delete the deployments unless you pass switch -ForceDelete
 ##
 ##        Windows users: 
 ##        Open powershell and execute this script
-##        PS C:\> ./Remove-DebugDeployments.ps1
+##        PS C:\> ./Remove-DebugDeployments.ps1                   -- this will list the deployments to be deleted, but will not delete those.
+##        PS C:\> ./Remove-DebugDeployments.ps1 -ForceDelete      -- this will delete the applicable deployments.
 ##        
 ##        Linux users:
 ##        Open powershell with pwsh command on Terminal and execute the script
-##        PS ./Remove-DebugDeployments.ps1
-##
+##        PS ./Remove-DebugDeployments.ps1                        -- this will list the deployments to be deleted, but will not delete those.
+##        PS ./Remove-DebugDeployments.ps1 -ForceDelete           -- this will delete the applicable deployments.
 
 param(
-    [switch]$whatIf
+    [switch]$ForceDelete
 )
 
 $ErrorActionPreference='Continue' # To make sure the script continues to run after an individual failure
 
-if($whatIf){
+if(-not $ForceDelete){
     $prefix = "What if:"
+    $whatIf = $true
 } else {
     $prefix = ""
+    $whatIf = $false
 }
 
 $managementGroups = Get-AzManagementGroup
