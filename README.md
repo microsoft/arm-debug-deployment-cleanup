@@ -5,6 +5,8 @@ This script will iterate though all ARM deployments and will clean up those depl
 - Subscriptions
 - Resource groups
 
+***Note: The user running the script must have permission to delete deployments at each scope.  If the user does not have permission to read deployments none will be returned or deleted.***
+
 ## Pre-requisites
 
 Windows Users -
