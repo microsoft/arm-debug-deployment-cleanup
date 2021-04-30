@@ -1,0 +1,4 @@
+[![Mark stale issues](https://github.com/Azure/arm-deploy/actions/workflows/stale.yml/badge.svg)](https://github.com/Azure/arm-deploy/actions/workflows/stale.yml)
+
+Mark stale issues
+http://github.com/Azure/arm-debug-deployment-cleanup
